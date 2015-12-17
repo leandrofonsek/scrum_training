@@ -5,6 +5,10 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -20,13 +24,16 @@ import java.util.Calendar;
 public class AlarmActivity extends Activity {
 
     AlarmManager alarmManager;
-    private PendingIntent pendingIntent;
+    private static PendingIntent pendingIntent;
     private TimePicker alarmTimePicker;
     private static AlarmActivity inst;
     private TextView alarmTextView;
     TextToSpeech tts;
     boolean done = false;
     String alarmTitle;
+
+    public static Ringtone ringtone;
+
 
     public static AlarmActivity instance() {
         return inst;
@@ -40,12 +47,22 @@ public class AlarmActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+        if (alarmUri == null) {
+            alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        }
+        ringtone = RingtoneManager.getRingtone(this, alarmUri);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
         alarmTimePicker = (TimePicker) findViewById(R.id.alarmTimePicker);
         alarmTextView = (TextView) findViewById(R.id.alarmText);
         ToggleButton alarmToggle = (ToggleButton) findViewById(R.id.alarmToggle);
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+
+        Intent myIntent = new Intent(AlarmActivity.this, AlarmReceiver.class);
+        pendingIntent = PendingIntent.getBroadcast(AlarmActivity.this, 12314314, myIntent, 0);
 
         tts = new TextToSpeech(AlarmActivity.this, new TextToSpeech.OnInitListener() {
             @Override
@@ -62,34 +79,34 @@ public class AlarmActivity extends Activity {
 
     public void onToggleClicked(View view) {
         if (((ToggleButton) view).isChecked()) {
+
             Log.d("MyActivity", "Alarm On");
             Calendar calendar = Calendar.getInstance();
             calendar.set(Calendar.HOUR_OF_DAY, alarmTimePicker.getCurrentHour());
             calendar.set(Calendar.MINUTE, alarmTimePicker.getCurrentMinute());
-            Intent myIntent = new Intent(AlarmActivity.this, AlarmReceiver.class);
-            pendingIntent = PendingIntent.getBroadcast(AlarmActivity.this, 0, myIntent, 0);
+            //Intent myIntent = new Intent(AlarmActivity.this, AlarmReceiver.class);
+            //pendingIntent = PendingIntent.getBroadcast(AlarmActivity.this, 0, myIntent, 0);
             alarmManager.set(AlarmManager.RTC, calendar.getTimeInMillis(), pendingIntent);
 
         } else {
 
-            AlarmManager alarmManager = (AlarmManager) mContext
-                    .getSystemService(Context.ALARM_SERVICE);
+            Intent intent = new Intent(getBaseContext(), AlarmReceiver.class);
+            PendingIntent newPendingIntent = PendingIntent.getBroadcast(getBaseContext(), 12314314, intent, 0);
+            AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+            alarmManager.cancel(newPendingIntent);
 
-            Intent intent = new Intent(PROX_ALERT_INTENT);
-            intent.putExtra("ALERT_TIME", alert.date);
-            intent.putExtra("ID_ALERT", alert.idAlert);
-            intent.putExtra("TITLE", alert.title);
-            intent.putExtra("GEO_LOC", alert.isGeoLoc);
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(mContext,
-                    alert.idAlert, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+            ringtone.stop();
 
-            alarmManager.cancel(pendingIntent);
+            try {
+                Thread.sleep(1500);                 //1000 milliseconds is one second.
+            } catch(InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
 
             TextView alarmTitleView = (TextView) findViewById(R.id.alarmTitle);
             alarmTitle = alarmTitleView.getText().toString();
-            Speak_Text(alarmTitle);
+            parlaMiguel(alarmTitle);
             setAlarmText("");
-            Log.d("MyActivity", "Alarm Off");
         }
     }
 
@@ -97,12 +114,14 @@ public class AlarmActivity extends Activity {
         alarmTextView.setText(alarmText);
     }
 
-    public void Speak_Text(String text_to_speak) {
+    public void parlaMiguel(String text_to_speak) {
         if (done)
             tts.speak(text_to_speak, TextToSpeech.QUEUE_FLUSH, null, null);
         else {
             Log.d("voice","not done");
         }
     }
+
+
 }
 
